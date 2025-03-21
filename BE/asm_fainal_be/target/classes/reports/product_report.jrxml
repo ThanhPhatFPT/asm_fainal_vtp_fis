@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="ProductReport" pageWidth="595" pageHeight="842" columnWidth="555" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20">
+
+
+    <!-- Định nghĩa style -->
+    <style name="titleStyle" fontName="SansSerif" fontSize="16" isBold="true" forecolor="#2C3E50"/>
+    <style name="subTitleStyle" fontName="SansSerif" fontSize="10" forecolor="#7F8C8D"/>
+    <style name="columnHeaderStyle"
+           fontName="SansSerif"
+           fontSize="12"
+           isBold="true"
+           forecolor="#FFFFFF"
+           backcolor="#3498DB"
+           hTextAlign="Center"
+           vTextAlign="Middle"
+           mode="Opaque">
+        <box>
+            <pen lineWidth="1.0" lineColor="#FFFFFF"/>
+            <topPen lineWidth="1.0" lineColor="#FFFFFF"/>
+            <leftPen lineWidth="1.0" lineColor="#FFFFFF"/>
+            <bottomPen lineWidth="1.0" lineColor="#FFFFFF"/>
+            <rightPen lineWidth="1.0" lineColor="#FFFFFF"/>
+        </box>
+    </style>
+    <style name="detailStyle"
+           fontName="SansSerif"
+           fontSize="10"
+           forecolor="#2C3E50"
+           hTextAlign="Left"
+           vTextAlign="Middle"
+           mode="Opaque">
+        <box>
+            <pen lineWidth="0.5" lineColor="#ECF0F1"/>
+            <topPen lineWidth="0.5" lineColor="#ECF0F1"/>
+            <leftPen lineWidth="0.5" lineColor="#ECF0F1"/>
+            <bottomPen lineWidth="0.5" lineColor="#ECF0F1"/>
+            <rightPen lineWidth="0.5" lineColor="#ECF0F1"/>
+        </box>
+    </style>
+
+    <!-- Parameters -->
+    <parameter name="ReportTitle" class="java.lang.String"/>
+    <parameter name="ReportDate" class="java.lang.String">
+        <defaultValueExpression><![CDATA[new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(new java.util.Date())]]></defaultValueExpression>
+    </parameter>
+
+    <!-- Fields -->
+    <field name="id" class="java.util.UUID"/>
+    <field name="name" class="java.lang.String"/>
+    <field name="price" class="java.lang.Double"/>
+    <field name="quantity" class="java.lang.Integer"/>
+    <field name="discount" class="java.lang.Double"/>
+    <field name="description" class="java.lang.String"/>
+    <field name="imageUrls" class="java.util.List"/>
+    <field name="category" class="com.example.workflow.model.Category"/>
+    <field name="status" class="com.example.workflow.model.Product$ProductStatus"/>
+
+    <!-- Background -->
+    <background>
+        <band height="802">
+            <rectangle>
+                <reportElement x="0" y="0" width="555" height="802" backcolor="#F8F9F9"/>
+                <graphicElement><pen lineWidth="0.5" lineColor="#BDC3C7"/></graphicElement>
+            </rectangle>
+        </band>
+    </background>
+
+    <!-- Title -->
+    <title>
+        <band height="80">
+            <rectangle>
+                <reportElement x="0" y="0" width="555" height="80" backcolor="#ECF0F1"/>
+                <graphicElement><pen lineWidth="0.5" lineColor="#BDC3C7"/></graphicElement>
+            </rectangle>
+            <textField>
+                <reportElement style="titleStyle" x="0" y="15" width="555" height="30"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle"/>
+                <textFieldExpression><![CDATA[$P{ReportTitle}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement style="subTitleStyle" x="0" y="45" width="555" height="20"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle"/>
+                <textFieldExpression><![CDATA["Ngày tạo: " + $P{ReportDate}]]></textFieldExpression>
+            </textField>
+            <line>
+                <reportElement x="0" y="75" width="555" height="1" forecolor="#BDC3C7"/>
+            </line>
+        </band>
+    </title>
+
+    <!-- Column Header -->
+    <columnHeader>
+        <band height="40">
+            <rectangle>
+                <reportElement x="0" y="0" width="555" height="40" backcolor="#3498DB"/>
+            </rectangle>
+            <staticText>
+                <reportElement style="columnHeaderStyle" x="0" y="0" width="80" height="40"/>
+                <text><![CDATA[ID]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="columnHeaderStyle" x="80" y="0" width="120" height="40"/>
+                <text><![CDATA[Tên Sản Phẩm]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="columnHeaderStyle" x="200" y="0" width="80" height="40"/>
+                <text><![CDATA[Giá]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="columnHeaderStyle" x="280" y="0" width="60" height="40"/>
+                <text><![CDATA[Số Lượng]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="columnHeaderStyle" x="340" y="0" width="80" height="40"/>
+                <text><![CDATA[Giảm Giá]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="columnHeaderStyle" x="420" y="0" width="135" height="40"/>
+                <text><![CDATA[Trạng Thái]]></text>
+            </staticText>
+        </band>
+    </columnHeader>
+
+    <!-- Detail -->
+    <detail>
+        <band height="30">
+            <rectangle>
+                <reportElement x="0" y="0" width="555" height="30" backcolor="#FFFFFF"/>
+                <graphicElement><pen lineWidth="0.5" lineColor="#ECF0F1"/></graphicElement>
+            </rectangle>
+            <textField>
+                <reportElement style="detailStyle" x="0" y="0" width="80" height="30"/>
+                <textFieldExpression><![CDATA[$F{id}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement style="detailStyle" x="80" y="0" width="120" height="30"/>
+                <textFieldExpression><![CDATA[$F{name}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement style="detailStyle" x="200" y="0" width="80" height="30"/>
+                <textElement textAlignment="Right"/>
+                <textFieldExpression><![CDATA[new java.text.DecimalFormat("#,###").format($F{price}) + " đ"]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement style="detailStyle" x="280" y="0" width="60" height="30"/>
+                <textElement textAlignment="Center"/>
+                <textFieldExpression><![CDATA[$F{quantity}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement style="detailStyle" x="340" y="0" width="80" height="30"/>
+                <textElement textAlignment="Right"/>
+                <textFieldExpression><![CDATA[new java.text.DecimalFormat("#,###").format($F{discount}) + " %"]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement style="detailStyle" x="420" y="0" width="135" height="30"/>
+                <textElement textAlignment="Center"/>
+                <textFieldExpression><![CDATA[$F{status}]]></textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+
+    <!-- Page Footer -->
+    <pageFooter>
+        <band height="40">
+            <rectangle>
+                <reportElement x="0" y="0" width="555" height="40" backcolor="#ECF0F1"/>
+                <graphicElement><pen lineWidth="0.5" lineColor="#BDC3C7"/></graphicElement>
+            </rectangle>
+            <textField>
+                <reportElement style="subTitleStyle" x="0" y="10" width="200" height="20"/>
+                <textFieldExpression><![CDATA["Tổng sản phẩm: " + $V{REPORT_COUNT}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement style="subTitleStyle" x="355" y="10" width="200" height="20"/>
+                <textElement textAlignment="Right"/>
+                <textFieldExpression><![CDATA["Trang " + $V{PAGE_NUMBER} + " / " + $V{PAGE_COUNT}]]></textFieldExpression>
+            </textField>
+            <line>
+                <reportElement x="0" y="0" width="555" height="1" forecolor="#BDC3C7"/>
+            </line>
+        </band>
+    </pageFooter>
+</jasperReport>

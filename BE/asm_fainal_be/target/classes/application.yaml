@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/postgres?currentSchema=demodb
+    username: postgres
+    password: 123
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+  security:
+    user:
+      name: admin
+      password: admin
+
+jwt:
+  secret: your_secret_key_here
+  expiration: 86400000 # Token sống trong 1 ngày (milliseconds)
+
+camunda:
+  bpm:
+    admin-user:
+      id: admin
+      password: admin
