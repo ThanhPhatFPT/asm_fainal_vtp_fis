@@ -117,7 +117,7 @@ const AnimatedRoutes = () => {
   return (
       <div className="min-h-screen flex flex-col">
         <Header /> {/* Header nằm ngoài để cố định */}
-        <main className="flex-grow pt-24"> {/* Padding để tránh dính Header và Footer */}
+        <main className="flex-grow pt-24 mt-3"> {/* Padding để tránh dính Header và Footer */}
           <Routes location={location}>
             <Route
                 path="/"
@@ -556,7 +556,8 @@ const Header: React.FC = () => {
                 const data = await CategoryService.getAllCategories();
                 const activeCategories = data
                     .filter((category) => category.status === "active")
-                    .slice(0, 10); // Giới hạn tối đa 10 danh mục
+                    .sort(() => Math.random() - 0.5) // Trộn ngẫu nhiên
+                    .slice(0, 14); // Giới hạn tối đa 14 danh mục
                 setCategories(activeCategories);
             } catch (error) {
                 console.error("Không thể tải danh mục:", error);
@@ -568,6 +569,7 @@ const Header: React.FC = () => {
 
         fetchCategories();
     }, []);
+
 
     const onLogout = () => {
         handleLogout();
@@ -677,10 +679,9 @@ const Header: React.FC = () => {
             >
                 <div className="container mx-auto px-4 py-1">
                     <div className="flex items-center space-x-6 text-sm overflow-x-auto whitespace-nowrap text-white">
-                        <Link to="#" className="flex items-center py-1 hover:text-yellow-300 transition-colors">
+                        <Link to="/allProducts" className="flex items-center py-1 hover:text-yellow-300 transition-colors">
                             <Menu size={16} className="mr-1" />
-                            <span>Danh mục sản phẩm</span>
-                            <ChevronDown size={16} className="ml-1" />
+                            <span>Tất cả danh mục</span>
                         </Link>
                         {loading ? (
                             <span className="text-gray-300">Đang tải danh mục...</span>

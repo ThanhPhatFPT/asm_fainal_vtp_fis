@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, Link } from 'react-router-dom';
-import { LayoutDashboard, Users, Tags, Package, Settings, Home, ShoppingCart } from 'lucide-react';
+import { LayoutDashboard, Users, Tags, Package, Settings, Home, ShoppingCart, List } from 'lucide-react';
 
 export default function Sidebar({ isOpen, toggleSidebar }) {
     const menuItems = [
@@ -9,7 +9,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
         { icon: Tags, label: 'Danh mục', path: '/admin/categories' },
         { icon: Package, label: 'Sản phẩm', path: '/admin/products' },
         { icon: ShoppingCart, label: "Đơn hàng", path: "/admin/orders" },
-        { icon: Settings, label: 'Quản lý quy trình', path: '/admin/taskList' },
+        { icon: List, label: 'Quản lý task', path: '/admin/taskList' },
     ];
 
     return (
@@ -27,6 +27,10 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
                 />
             </div>
 
+
+            <div className="p-4 flex justify-center">
+               <h2 className="text-2xl font-bold">Admin FPT Shop</h2>
+            </div>
             {/* Menu điều hướng */}
             <div className="p-4 flex-grow">
                 <nav>
@@ -34,7 +38,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
                         <NavLink
                             key={index}
                             to={item.path}
-                            className={({ isActive }) =>
+                            className={({isActive}) =>
                                 `flex items-center space-x-3 p-3 rounded-lg mb-2 transition-colors duration-200 ${
                                     isActive
                                         ? 'bg-red-700 text-yellow-300'
@@ -42,7 +46,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
                                 }`
                             }
                         >
-                            <item.icon size={20} />
+                            <item.icon size={20}/>
                             <span>{item.label}</span>
                         </NavLink>
                     ))}
@@ -55,7 +59,7 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
                     to="/"
                     className="flex items-center space-x-3 p-3 rounded-lg bg-red-700 text-yellow-300 hover:bg-red-800 hover:text-white transition-colors duration-200"
                 >
-                    <Home size={20} />
+                    <Home size={20}/>
                     <span>Quay lại trang chủ</span>
                 </Link>
             </div>

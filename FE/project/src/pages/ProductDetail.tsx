@@ -63,7 +63,7 @@ const ProductDetail = () => {
                         p.id !== product.id &&
                         p.status === "ACTIVE"
                 )
-                .slice(0, 15) // Giới hạn 15 sản phẩm
+                .slice(0, 8) // Giới hạn 15 sản phẩm
                 .map((p) => ({
                     id: p.id,
                     name: p.name,
@@ -214,7 +214,7 @@ const ProductDetail = () => {
     };
 
     return (
-        <div className="container mx-auto p-6 min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 mt-6 mb-6">
+        <div className="container mx-auto p-6 min-h-screen bg-gradient-to-b  to-gray-100 mt-6 mb-6">
             <ToastContainer
                 position="top-right"
                 autoClose={1000}
