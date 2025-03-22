@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { DollarSign, ShoppingBag, UserCheck, TrendingUp, ShoppingCart, X, Search, ArrowUpDown } from 'lucide-react';
 import orderService from '../service/orderService.js';
+import axios from 'axios'; // Thêm axios để gọi API
 
-function RevenueStats({ onOrdersClick }) {
+function RevenueStats({ onOrdersClick, onTopSpendersClick }) {
   const [stats, setStats] = useState({
     totalRevenue: 0,
     totalOrders: 0,
     averageOrderValue: 0,
-    uniqueUserCount: 0, // Thêm state cho tổng khách hàng
+    uniqueUserCount: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -17,7 +18,7 @@ function RevenueStats({ onOrdersClick }) {
         orderService.getTotalRevenue(),
         orderService.getTotalOrders(),
         orderService.getAverageOrderValue(),
-        orderService.getUniqueUserCount(), // Gọi API để lấy tổng số khách hàng
+        orderService.getUniqueUserCount(),
       ]);
       setStats({
         totalRevenue: revenue,
@@ -41,7 +42,7 @@ function RevenueStats({ onOrdersClick }) {
   const formattedStats = [
     { icon: DollarSign, label: 'Tổng doanh thu', value: new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(stats.totalRevenue), trend: '+12.5%' },
     { icon: ShoppingBag, label: 'Tổng đơn hàng', value: stats.totalOrders.toLocaleString('vi-VN'), trend: '+8.3%', onClick: onOrdersClick },
-    { icon: UserCheck, label: 'Tổng khách hàng', value: stats.uniqueUserCount.toLocaleString('vi-VN'), trend: '+5.7%' }, // Sử dụng dữ liệu từ API
+    { icon: UserCheck, label: 'Tổng khách hàng', value: stats.uniqueUserCount.toLocaleString('vi-VN'), trend: '+5.7%', onClick: onTopSpendersClick }, // Thêm sự kiện onClick
     { icon: TrendingUp, label: 'Giá trị đơn TB', value: new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(stats.averageOrderValue), trend: '+2.1%' },
   ];
 
@@ -73,6 +74,8 @@ export default function Dashboard() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [allOrders, setAllOrders] = useState([]);
   const [showOrdersModal, setShowOrdersModal] = useState(false);
+  const [showTopSpendersModal, setShowTopSpendersModal] = useState(false); // Thêm state cho modal top spenders
+  const [topSpenders, setTopSpenders] = useState([]); // State để lưu danh sách top spenders
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState('desc');
@@ -104,6 +107,16 @@ export default function Dashboard() {
     }
   };
 
+  const fetchTopSpenders = async () => {
+    try {
+      const response = await axios.get('http://localhost:8080/api/users/top-spenders');
+      setTopSpenders(response.data);
+      setShowTopSpendersModal(true);
+    } catch (error) {
+      console.error('Error fetching top spenders:', error);
+    }
+  };
+
   useEffect(() => {
     fetchRecentOrders();
   }, []);
@@ -123,8 +136,16 @@ export default function Dashboard() {
     setSortOrder('desc');
   };
 
+  const handleTopSpendersClick = () => {
+    fetchTopSpenders();
+  };
+
   const closeOrdersModal = () => {
     setShowOrdersModal(false);
+  };
+
+  const closeTopSpendersModal = () => {
+    setShowTopSpendersModal(false);
   };
 
   const filteredOrders = allOrders
@@ -160,7 +181,7 @@ export default function Dashboard() {
   return (
       <>
         <h2 className="text-2xl font-semibold mb-6">Tổng quan doanh thu</h2>
-        <RevenueStats onOrdersClick={handleOrdersClick} />
+        <RevenueStats onOrdersClick={handleOrdersClick} onTopSpendersClick={handleTopSpendersClick} />
         <div className="mt-6">
           <div className="bg-white p-6 rounded-lg shadow-sm">
             <h3 className="text-lg font-semibold mb-4">Đơn hàng gần đây (Đã giao)</h3>
@@ -360,6 +381,40 @@ export default function Dashboard() {
                       Sau
                     </button>
                   </div>
+                </div>
+              </div>
+            </div>
+        )}
+
+        {/* Modal Top 3 khách hàng chi tiêu nhiều nhất */}
+        {showTopSpendersModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50">
+              <div className="bg-white p-8 rounded-xl shadow-2xl w-1/2 max-h-[85vh] overflow-y-auto">
+                <div className="flex justify-between items-center mb-6 border-b pb-4">
+                  <h3 className="text-2xl font-bold text-gray-800">Top 3 khách hàng chi tiêu nhiều nhất</h3>
+                  <button onClick={closeTopSpendersModal} className="text-gray-500 hover:text-gray-700 transition-colors duration-200">
+                    <X size={28} />
+                  </button>
+                </div>
+                <div className="space-y-4">
+                  {topSpenders.length > 0 ? (
+                      topSpenders.map((spender, index) => (
+                          <div key={spender.userId} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg shadow-sm">
+                            <div className="flex items-center space-x-4">
+                              <span className="text-lg font-semibold text-blue-600">{index + 1}</span>
+                              <div>
+                                <p className="font-medium text-gray-800">{spender.userName}</p>
+                                <p className="text-sm text-gray-500">{spender.email}</p>
+                              </div>
+                            </div>
+                            <p className="font-semibold text-green-600">
+                              {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(spender.totalSpent)}
+                            </p>
+                          </div>
+                      ))
+                  ) : (
+                      <p className="text-gray-500">Không có dữ liệu khách hàng.</p>
+                  )}
                 </div>
               </div>
             </div>

@@ -21,6 +21,7 @@ const HomePage = () => {
   const navigate = useNavigate();
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
+  const [topSellingProducts, setTopSellingProducts] = useState([]); // State cho top 5 sản phẩm bán chạy
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [quantity, setQuantity] = useState(1);
@@ -66,7 +67,27 @@ const HomePage = () => {
       }
     };
 
-    Promise.all([fetchCategories(), fetchProducts()]).finally(() => setLoading(false));
+    // Gọi API để lấy top 5 sản phẩm bán chạy
+    const fetchTopSellingProducts = async () => {
+      try {
+        const response = await fetch('http://localhost:8080/api/products/top-selling', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        if (!response.ok) {
+          throw new Error('Không thể tải top sản phẩm bán chạy');
+        }
+        const data = await response.json();
+        setTopSellingProducts(data);
+      } catch (error) {
+        console.error('Lỗi khi lấy top sản phẩm bán chạy:', error);
+        toast.error("Không thể tải top sản phẩm bán chạy!");
+      }
+    };
+
+    Promise.all([fetchCategories(), fetchProducts(), fetchTopSellingProducts()]).finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
@@ -87,12 +108,12 @@ const HomePage = () => {
     return () => window.removeEventListener('scroll', revealElements);
   }, []);
 
-  // Đồng hồ đếm ngược
+  // Đồng hồ đếm ngược cho topSellingProducts
   useEffect(() => {
     const timer = setInterval(() => {
       const newCountdown = {};
-      topDiscountedProducts.forEach(product => {
-        const timeLeft = new Date(product.discountEndTime) - Date.now();
+      topSellingProducts.forEach(product => {
+        const timeLeft = new Date(product.discountEndTime || Date.now() + 24 * 60 * 60 * 1000) - Date.now();
         if (timeLeft > 0) {
           const hours = Math.floor((timeLeft / (1000 * 60 * 60)) % 24);
           const minutes = Math.floor((timeLeft / (1000 * 60)) % 60);
@@ -106,7 +127,7 @@ const HomePage = () => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [products]);
+  }, [topSellingProducts]);
 
   // Animation variants
   const productVariants = {
@@ -343,6 +364,131 @@ const HomePage = () => {
           </div>
         </div>
 
+        {/* Top 5 Sản phẩm bán chạy */}
+        <div className="container mx-auto px-4 py-6">
+          <ScrollReveal>
+            <div className="bg-white rounded-lg p-4 mb-6 hover:shadow-lg transition-shadow duration-300">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-red-600">Top 5 Sản phẩm bán chạy</h3>
+                <Link to="/allProducts" className="text-blue-600 flex items-center text-sm group">
+                  Xem tất cả <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                </Link>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                <AnimatePresence>
+                  {topSellingProducts.slice(0, 5).map((product) => (
+                      <motion.div
+                          key={product.id}
+                          variants={productVariants}
+                          initial="hidden"
+                          animate="visible"
+                          exit="exit"
+                          className="relative group h-full flex flex-col"
+                      >
+                        <Link
+                            to={`/productDetail/${product.id}`}
+                            className="product-card border rounded-lg p-3 hover:shadow-md transition transform hover:-translate-y-1 duration-300 block flex flex-col h-full"
+                        >
+                          <div className="relative flex-shrink-0">
+                            <img
+                                src={product.imageUrls[0] || "https://via.placeholder.com/150"}
+                                alt={product.name}
+                                className="w-full h-40 object-contain mb-3 transition-transform duration-300 group-hover:scale-110 group-hover:opacity-80"
+                                onError={(e) => (e.currentTarget.src = "https://via.placeholder.com/150")}
+                            />
+                            {product.discount > 0 && (
+                                <span className="absolute top-0 right-0 bg-red-600 text-white text-xs px-2 py-1 rounded">
+                            -{product.discount}%
+                          </span>
+                            )}
+                          </div>
+                          <div className="flex flex-col flex-grow">
+                            <h3 className="font-semibold text-sm mb-1 truncate">{product.name}</h3>
+                            <div className="mt-auto flex flex-col">
+                          <span className="text-red-600 font-bold">
+                            {formatPrice(calculateDiscountedPrice(product.price, product.discount))}
+                          </span>
+                              <span className="text-gray-500 text-xs line-through min-h-[1rem]">
+                            {product.discount > 0 ? formatPrice(product.price) : ""}
+                          </span>
+                              <span className="text-green-600 text-xs font-medium mt-1">Trả góp 0%</span>
+                            </div>
+                            <div className="mt-2 flex items-center text-xs text-gray-500">
+                              <span className="bg-gray-200 rounded-full w-6 h-6 flex items-center justify-center mr-1">👍</span>
+                              <span>Đánh giá tốt</span>
+                            </div>
+                          </div>
+                        </Link>
+                        <button
+                            onClick={() => openModal(product)}
+                            className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 bg-red-500 text-white py-1 px-2 rounded-full flex items-center justify-center space-x-1 hover:bg-red-600 transition-all duration-300 shadow-lg text-xs font-medium whitespace-nowrap"
+                            disabled={product.quantity === 0}
+                        >
+                          <FaShoppingCart size={12} />
+                          <span>{product.quantity > 0 ? "Thêm vào giỏ" : "Hết hàng"}</span>
+                        </button>
+                      </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
+            </div>
+          </ScrollReveal>
+        </div>
+
+        
+
+        {/* Flash Sale Section */}
+        <div className="container mx-auto px-4 py-6">
+          <div className="text-center mb-6">
+            <h2 className="text-3xl font-extrabold uppercase tracking-wider bg-gradient-to-r from-red-500 to-yellow-400 text-white py-3 rounded-lg shadow-md">
+              ⚡ Flash Sale - Giảm Sốc ⚡
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {topDiscountedProducts.map((product, index) => (
+                <ScrollReveal key={product.id} delay={100 + index * 100}>
+                  <Link to={`/productDetail/${product.id}`} className="block">
+                    <div
+                        className={`relative bg-gradient-to-r ${
+                            index === 0 ? "from-red-500 to-red-700" : index === 1 ? "from-blue-500 to-blue-700" : "from-green-500 to-green-700"
+                        } rounded-lg p-6 text-white flex flex-col justify-between h-full shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 hover:scale-105`}
+                    >
+                      <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-4 bg-black bg-opacity-60 px-4 py-1 rounded-full text-xs font-semibold animate-pulse">
+                        ⚡ FLASH SALE: {countdown[product.id] || "Đang tính..."}
+                      </div>
+                      <div className="mt-6 text-center">
+                        <h3 className="text-lg font-bold">{product.name}</h3>
+                        <p className="text-sm mb-2">🔥 Giảm {product.discount}% 🔥</p>
+                        <div className="flex justify-center items-center space-x-1">
+                      <span className="text-2xl font-bold">
+                        {(calculateDiscountedPrice(product.price, product.discount) / 1000000).toFixed(2)}
+                      </span>
+                          <span className="text-sm">triệu</span>
+                        </div>
+                        <span className="text-green-200 text-xs font-medium mt-1 block">Trả góp 0%</span>
+                      </div>
+                      <div className="flex justify-between items-center mt-4">
+                        <motion.button
+                            className={`bg-white ${index === 1 ? "text-blue-600" : "text-red-600"} px-4 py-1.5 rounded-full text-xs shadow-md hover:shadow-lg transition-all`}
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.95 }}
+                        >
+                          MUA NGAY
+                        </motion.button>
+                        <img
+                            src={product.imageUrls[0] || "https://via.placeholder.com/150"}
+                            alt={product.name}
+                            className="h-28 w-28 object-contain drop-shadow-md"
+                            onError={(e) => (e.currentTarget.src = "https://via.placeholder.com/150")}
+                        />
+                      </div>
+                    </div>
+                  </Link>
+                </ScrollReveal>
+            ))}
+          </div>
+        </div>
+
         {/* Featured Products */}
         <div className="container mx-auto px-4 py-6">
           <ScrollReveal>
@@ -390,6 +536,7 @@ const HomePage = () => {
                               <span className="text-gray-500 text-xs line-through min-h-[1rem]">
                             {product.discount > 0 ? formatPrice(product.price) : ""}
                           </span>
+                              <span className="text-green-600 text-xs font-medium mt-1">Trả góp 0%</span>
                             </div>
                             <div className="mt-2 flex items-center text-xs text-gray-500">
                               <span className="bg-gray-200 rounded-full w-6 h-6 flex items-center justify-center mr-1">👍</span>
@@ -412,135 +559,7 @@ const HomePage = () => {
             </div>
           </ScrollReveal>
         </div>
-
-        {/* Flash Sale Section */}
-        <div className="container mx-auto px-4 py-6">
-          {/* Tiêu đề Flash Sale */}
-          <div className="text-center mb-6">
-            <h2 className="text-3xl font-extrabold uppercase tracking-wider bg-gradient-to-r from-red-500 to-yellow-400 text-white py-3 rounded-lg shadow-md">
-              ⚡ Flash Sale - Giảm Sốc ⚡
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {topDiscountedProducts.map((product, index) => (
-                <ScrollReveal key={product.id} delay={100 + index * 100}>
-                  <Link to={`/productDetail/${product.id}`} className="block">
-                    <div
-                        className={`relative bg-gradient-to-r ${
-                            index === 0 ? "from-red-500 to-red-700" : index === 1 ? "from-blue-500 to-blue-700" : "from-green-500 to-green-700"
-                        } rounded-lg p-6 text-white flex flex-col justify-between h-full shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 hover:scale-105`}
-                    >
-                      {/* Flash Sale & Đồng hồ đếm ngược */}
-                      <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-4 bg-black bg-opacity-60 px-4 py-1 rounded-full text-xs font-semibold animate-pulse">
-                        ⚡ FLASH SALE: {countdown[product.id] || "Đang tính..."}
-                      </div>
-
-                      {/* Nội dung */}
-                      <div className="mt-6 text-center">
-                        <h3 className="text-lg font-bold">{product.name}</h3>
-                        <p className="text-sm mb-2">🔥 Giảm {product.discount}% 🔥</p>
-                        <div className="flex justify-center items-center space-x-1">
-                <span className="text-2xl font-bold">
-                  {(calculateDiscountedPrice(product.price, product.discount) / 1000000).toFixed(2)}
-                </span>
-                          <span className="text-sm">triệu</span>
-                        </div>
-                      </div>
-
-                      {/* Ảnh & Nút */}
-                      <div className="flex justify-between items-center mt-4">
-                        <motion.button
-                            className={`bg-white ${index === 1 ? "text-blue-600" : "text-red-600"} px-4 py-1.5 rounded-full text-xs shadow-md hover:shadow-lg transition-all`}
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.95 }}
-                        >
-                          MUA NGAY
-                        </motion.button>
-                        <img
-                            src={product.imageUrls[0] || "https://via.placeholder.com/150"}
-                            alt={product.name}
-                            className="h-28 w-28 object-contain drop-shadow-md"
-                            onError={(e) => (e.currentTarget.src = "https://via.placeholder.com/150")}
-                        />
-                      </div>
-                    </div>
-                  </Link>
-                </ScrollReveal>
-            ))}
-          </div>
-        </div>
-
-
-        {/* Featured Products (Duplicate Section) */}
-        <div className="container mx-auto px-4 py-6">
-          <ScrollReveal>
-            <div className="bg-white rounded-lg p-4 mb-6 hover:shadow-lg transition-shadow duration-300">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-red-600">Giá tốt, Nhanh tay. Số lượng ít!</h3>
-                <Link to="/allProducts" className="text-blue-600 flex items-center text-sm group">
-                  Xem tất cả <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                </Link>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                <AnimatePresence>
-                  {products.slice(0, 5).map((product) => (
-                      <motion.div
-                          key={product.id}
-                          variants={productVariants}
-                          initial="hidden"
-                          animate="visible"
-                          exit="exit"
-                          className="relative group h-full flex flex-col"
-                      >
-                        <Link
-                            to={`/productDetail/${product.id}`}
-                            className="product-card border rounded-lg p-3 hover:shadow-md transition transform hover:-translate-y-1 duration-300 block flex flex-col h-full"
-                        >
-                          <div className="relative flex-shrink-0">
-                            <img
-                                src={product.imageUrls[0] || "https://via.placeholder.com/150"}
-                                alt={product.name}
-                                className="w-full h-40 object-contain mb-3 transition-transform duration-300 group-hover:scale-110 group-hover:opacity-80"
-                                onError={(e) => (e.currentTarget.src = "https://via.placeholder.com/150")}
-                            />
-                            {product.discount > 0 && (
-                                <span className="absolute top-0 right-0 bg-red-600 text-white text-xs px-2 py-1 rounded">
-                            -{product.discount}%
-                          </span>
-                            )}
-                          </div>
-                          <div className="flex flex-col flex-grow">
-                            <h3 className="font-semibold text-sm mb-1 truncate">{product.name}</h3>
-                            <div className="mt-auto flex flex-col">
-                          <span className="text-red-600 font-bold">
-                            {formatPrice(calculateDiscountedPrice(product.price, product.discount))}
-                          </span>
-                              <span className="text-gray-500 text-xs line-through min-h-[1rem]">
-                            {product.discount > 0 ? formatPrice(product.price) : ""}
-                          </span>
-                            </div>
-                            <div className="mt-2 flex items-center text-xs text-gray-500">
-                              <span className="bg-gray-200 rounded-full w-6 h-6 flex items-center justify-center mr-1">👍</span>
-                              <span>Đánh giá tốt</span>
-                            </div>
-                          </div>
-                        </Link>
-                        <button
-                            onClick={() => openModal(product)}
-                            className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 bg-red-500 text-white py-1 px-2 rounded-full flex items-center justify-center space-x-1 hover:bg-red-600 transition-all duration-300 shadow-lg text-xs font-medium whitespace-nowrap"
-                            disabled={product.quantity === 0}
-                        >
-                          <FaShoppingCart size={12} />
-                          <span>{product.quantity > 0 ? "Thêm vào giỏ" : "Hết hàng"}</span>
-                        </button>
-                      </motion.div>
-                  ))}
-                </AnimatePresence>
-              </div>
-            </div>
-          </ScrollReveal>
-        </div>
+        
 
         {/* Bottom Message */}
         <motion.div className="bg-gradient-to-r from-red-600 to-red-500 py-4" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5 }}>
@@ -618,6 +637,7 @@ const HomePage = () => {
                         {selectedProduct.discount > 0 && (
                             <span className="text-sm text-green-600 font-medium">Giảm {selectedProduct.discount}%</span>
                         )}
+                        <span className="text-sm text-green-600 font-medium block mt-1">Trả góp 0%</span>
                       </div>
                       <div className="mt-6">
                         <span className="text-gray-700 font-semibold mr-4">Số lượng:</span>

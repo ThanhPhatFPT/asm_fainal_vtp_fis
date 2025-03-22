@@ -2,6 +2,8 @@ package com.example.workflow.repository;
 
 import com.example.workflow.model.Product;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -16,7 +18,8 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     List<Product> findByNameContainingIgnoreCase(String name);
 
     // Thêm phương thức mới: Tìm sản phẩm theo category_id
-    List<Product> findByCategoryId(UUID categoryId);
+    @Query("SELECT p FROM Product p WHERE p.category.id = :categoryId AND p.status = 'ACTIVE'")
+    List<Product> findActiveProductsByCategoryId(@Param("categoryId") UUID categoryId);
 
     boolean existsByName(String name); // Thêm phương thức này
 }

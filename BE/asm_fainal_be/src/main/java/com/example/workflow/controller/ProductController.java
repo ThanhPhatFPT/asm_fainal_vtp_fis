@@ -1,5 +1,6 @@
 package com.example.workflow.controller;
 
+import com.example.workflow.dto.ProductDTO;
 import com.example.workflow.model.Product;
 import com.example.workflow.service.ProductService;
 import jakarta.validation.Valid;
@@ -135,6 +136,11 @@ public class ProductController {
         }
     }
 
+
+    @GetMapping("/top-selling")
+    public List<ProductDTO> getTopSellingProducts() {
+        return productService.getTopSellingProducts();
+    }
 
     
 }

@@ -39,5 +39,12 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     @Query("SELECT COUNT(DISTINCT o.user.id) FROM Order o")
     Long countDistinctUsers();
 
+    // Truy vấn top 3 user có tổng số tiền mua hàng cao nhất
+    @Query("SELECT o.user, SUM(o.totalAmount) AS totalSpent FROM Order o " +
+            "WHERE o.status = 'ĐÃ_GIAO' " +
+            "GROUP BY o.user " +
+            "ORDER BY totalSpent DESC")
+    List<Object[]> findTop3UsersBySpending();
+
 
     }

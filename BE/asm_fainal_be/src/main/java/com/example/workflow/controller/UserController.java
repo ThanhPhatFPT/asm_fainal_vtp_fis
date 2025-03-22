@@ -1,5 +1,6 @@
 package com.example.workflow.controller;
 
+import com.example.workflow.model.TopUserDTO;
 import com.example.workflow.model.User;
 import com.example.workflow.service.UserService;
 import org.springframework.http.ResponseEntity;
@@ -67,5 +68,10 @@ public class UserController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
         }
+    }
+
+    @GetMapping("/top-spenders")
+    public List<TopUserDTO> getTop3UsersBySpending() {
+        return userService.getTop3UsersBySpending();
     }
 }

@@ -1,20 +1,27 @@
 package com.example.workflow.service;
 
 import com.example.workflow.model.Role;
+import com.example.workflow.model.TopUserDTO;
 import com.example.workflow.model.User;
 import com.example.workflow.model.User.UserStatus;
+import com.example.workflow.repository.OrderRepository;
 import com.example.workflow.repository.UserRepository;
 import jakarta.transaction.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private OrderRepository orderRepository;
 
     public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
@@ -89,5 +96,16 @@ public class UserService {
 
     public User getUserByEmail(String name) {
         return userRepository.findByEmail(name).orElseThrow(() -> new IllegalArgumentException("Không tìm thấy người dùng với email: " + name));
+    }
+
+
+    public List<TopUserDTO> getTop3UsersBySpending() {
+        List<Object[]> results = orderRepository.findTop3UsersBySpending();
+
+        return results.stream().limit(3).map(result -> {
+            User user = (User) result[0];
+            Double totalSpent = (Double) result[1];
+            return new TopUserDTO(user.getUserId(), user.getFullName(), user.getEmail(), totalSpent);
+        }).collect(Collectors.toList());
     }
 }

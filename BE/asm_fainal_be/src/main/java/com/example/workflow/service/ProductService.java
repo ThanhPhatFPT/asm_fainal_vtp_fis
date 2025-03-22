@@ -1,8 +1,10 @@
 package com.example.workflow.service;
 
+import com.example.workflow.dto.ProductDTO;
 import com.example.workflow.model.Category;
 import com.example.workflow.model.Product;
 import com.example.workflow.repository.CategoryRepository;
+import com.example.workflow.repository.OrderDetailRepository;
 import com.example.workflow.repository.ProductRepository;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class ProductService {
@@ -22,6 +25,9 @@ public class ProductService {
 
     @Autowired
     private CategoryRepository categoryRepository;
+
+    @Autowired
+    private OrderDetailRepository orderDetailRepository;
 
     public ProductService(ProductRepository productRepository) {
         this.productRepository = productRepository;
@@ -99,7 +105,7 @@ public class ProductService {
         if (categoryId == null) {
             throw new IllegalArgumentException("Category ID cannot be null");
         }
-        return productRepository.findByCategoryId(categoryId);
+        return productRepository.findActiveProductsByCategoryId(categoryId);
     }
 
     @Transactional
@@ -251,5 +257,11 @@ public class ProductService {
     // Hàm kiểm tra sự tồn tại của tên sản phẩm
     public boolean existsByName(String name) {
         return productRepository.existsByName(name);
+    }
+
+
+    public List<ProductDTO> getTopSellingProducts() {
+        List<Product> topProducts = orderDetailRepository.findTopSellingProducts();
+        return topProducts.stream().limit(5).map(ProductDTO::new).collect(Collectors.toList());
     }
 }

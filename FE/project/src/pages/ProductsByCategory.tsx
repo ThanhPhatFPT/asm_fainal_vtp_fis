@@ -209,7 +209,7 @@ const ProductsByCategory = () => {
     };
 
     return (
-        <div className="container mx-auto px-4 py-8 min-h-screen bg-gray-50">
+        <div className="container mx-auto px-4 py-8 min-h-screen ">
             <ToastContainer position="top-right" autoClose={1000} hideProgressBar={false} />
             <div className="w-full">
                 {/* Header */}
@@ -220,7 +220,7 @@ const ProductsByCategory = () => {
                 </div>
 
                 {/* Search Bar */}
-                <div className="mb-8 flex justify-center">
+                <div className="mb-8 flex justify-start items-center">
                     <input
                         type="text"
                         placeholder="Tìm kiếm sản phẩm theo tên..."
@@ -271,6 +271,10 @@ const ProductsByCategory = () => {
                                                     </span>
                                                     <span className="text-gray-400 text-sm line-through min-h-[1.25rem]">
                                                         {product.discount > 0 ? formatPrice(product.price) : ""}
+                                                    </span>
+                                                    {/* Thêm nhãn Trả góp 0% */}
+                                                    <span className="text-green-600 text-xs font-medium mt-1">
+                                                        {product.price >= 3000000 ? "Trả góp 0%" : ""}
                                                     </span>
                                                 </div>
                                             </div>
