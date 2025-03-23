@@ -1,5 +1,6 @@
 package com.example.workflow.service;
 
+import com.example.workflow.dto.UpdateProfileRequest;
 import com.example.workflow.model.Role;
 import com.example.workflow.model.TopUserDTO;
 import com.example.workflow.model.User;
@@ -108,4 +109,43 @@ public class UserService {
             return new TopUserDTO(user.getUserId(), user.getFullName(), user.getEmail(), totalSpent);
         }).collect(Collectors.toList());
     }
+
+    @Transactional
+    public User updateUserProfile(String email, UpdateProfileRequest request) {
+        User user = findByEmail(email); // Tìm user bằng email
+        if (request.getFullName() != null && !request.getFullName().isEmpty()) {
+            user.setFullName(request.getFullName());
+        }
+        if (request.getEmail() != null && !request.getEmail().isEmpty()) {
+            if (!request.getEmail().equals(email) && userRepository.existsByEmail(request.getEmail())) {
+                throw new IllegalArgumentException("Email mới đã tồn tại");
+            }
+            user.setEmail(request.getEmail());
+        }
+        if (request.getPassword() != null && !request.getPassword().isEmpty()) {
+            user.setPassword(passwordEncoder.encode(request.getPassword()));
+        }
+        return userRepository.save(user);
+    }
+
+    // ✅ Thêm phương thức để cập nhật mật khẩu
+    @Transactional
+    public User updatePassword(String email, String newPassword) {
+        if (newPassword == null || newPassword.isEmpty()) {
+            throw new IllegalArgumentException("Mật khẩu mới không được để trống");
+        }
+
+        User user = findByEmail(email);
+        user.setPassword(passwordEncoder.encode(newPassword));
+        return userRepository.save(user);
+    }
+
+    // Phương thức save để sử dụng trong AuthController (nếu cần)
+    @Transactional
+    public void save(User user) {
+        userRepository.save(user);
+    }
+
+
+
 }

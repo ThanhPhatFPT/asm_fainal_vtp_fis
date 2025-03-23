@@ -1,27 +1,39 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom"; // Thêm useNavigate
 import { Smartphone } from "lucide-react";
 import { motion } from "framer-motion";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import axios from "axios";
 
 const ForgotPasswordPage: React.FC = () => {
     const [email, setEmail] = useState("");
     const [loading, setLoading] = useState(false);
+    const navigate = useNavigate(); // Thêm navigate để chuyển hướng
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
 
         try {
-            await new Promise((resolve) => setTimeout(resolve, 2000));
+            const response = await axios.post(
+                "http://localhost:8080/api/auth/forgot-password",
+                { email }
+            );
 
-            toast.success("Liên kết đặt lại mật khẩu đã được gửi!", {
+            toast.success(response.data.message, {
                 position: "top-right",
                 autoClose: 3000,
             });
-        } catch (error) {
-            toast.error("Đã xảy ra lỗi, vui lòng thử lại.", {
+
+            // Chuyển hướng sang trang ResetPasswordPage với email
+            setTimeout(() => {
+                navigate(`/reset-password?email=${encodeURIComponent(email)}`);
+            }, 2000);
+        } catch (error: any) {
+            const errorMessage =
+                error.response?.data?.message || "Đã xảy ra lỗi, vui lòng thử lại.";
+            toast.error(errorMessage, {
                 position: "top-right",
                 autoClose: 3000,
             });

@@ -26,13 +26,15 @@ import OrderHistory from "./pages/OrderHistory.tsx";
 import TaskList from "./pages/TaskList.tsx";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
+import EditProfilePage from "./pages/EditProfilePage.tsx";
+import ResetPasswordPage from "./pages/ResetPasswordPage.tsx";
 
 // Tạo AuthContext
 interface AuthContextType {
   isLoggedIn: boolean;
   userEmail: string | null;
   userRole: string | null;
-  setAuthData: (data: { isLoggedIn: boolean; userEmail: string | null; userRole: string | null }) => void;
+  setAuthData: (data: (prev) => any) => void;
   handleLogout: () => void;
 }
 
@@ -267,6 +269,37 @@ const AnimatedRoutes = () => {
                           transition={{ duration: 0.5 }}
                       >
                           <ForgotPasswordPage />
+                      </motion.div>
+                  }
+              />
+              <Route
+                  path="/reset-password"
+                  element={
+                      <motion.div
+                          key="reset-password"
+                          variants={pageVariants}
+                          initial="initial"
+                          animate="animate"
+                          exit="exit"
+                          transition={{ duration: 0.5 }}
+                      >
+                          <ResetPasswordPage />
+                      </motion.div>
+                  }
+              />
+
+              <Route
+                  path="/update-profile"
+                  element={
+                      <motion.div
+                          key="login"
+                          variants={pageVariants}
+                          initial="initial"
+                          animate="animate"
+                          exit="exit"
+                          transition={{ duration: 0.5 }}
+                      >
+                          <EditProfilePage />
                       </motion.div>
                   }
               />
@@ -626,20 +659,38 @@ const Header: React.FC = () => {
                                             Xin chào, <b>{userEmail}</b>
                                         </div>
                                         {userRole === "USER" && (
-                                            <Link
-                                                to="/orders"
-                                                className="block px-4 py-2 text-gray-700 hover:bg-red-500 hover:text-white transition rounded-md"
-                                            >
-                                                Quản lý đơn hàng
-                                            </Link>
+                                            <>
+                                                <Link
+                                                    to="/orders"
+                                                    className="block px-4 py-2 text-gray-700 hover:bg-red-500 hover:text-white transition rounded-md"
+                                                >
+                                                    Quản lý đơn hàng
+                                                </Link>
+
+                                                <Link
+                                                    to="/update-profile"
+                                                    className="block px-4 py-2 text-gray-700 hover:bg-red-500 hover:text-white transition rounded-md"
+                                                >
+                                                    Quản lý tài khoản
+                                                </Link>
+                                            </>
                                         )}
+
                                         {userRole === "ADMIN" && (
-                                            <Link
-                                                to="/admin"
-                                                className="block px-4 py-2 text-gray-700 hover:bg-red-500 hover:text-white transition rounded-md"
-                                            >
-                                                Trang quản trị
-                                            </Link>
+                                          <>
+                                              <Link
+                                                  to="/admin"
+                                                  className="block px-4 py-2 text-gray-700 hover:bg-red-500 hover:text-white transition rounded-md"
+                                              >
+                                                  Trang quản trị
+                                              </Link>
+                                              <Link
+                                                  to="/update-profile"
+                                                  className="block px-4 py-2 text-gray-700 hover:bg-red-500 hover:text-white transition rounded-md"
+                                              >
+                                                  Quản lý tài khoản
+                                              </Link>
+                                          </>
                                         )}
                                         <button
                                             onClick={onLogout}

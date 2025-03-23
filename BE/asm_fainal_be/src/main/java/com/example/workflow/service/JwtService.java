@@ -38,6 +38,11 @@ public class JwtService {
         }
     }
 
+    // Trích xuất role từ token
+    public String extractRole(String token) {
+        return extractClaim(token, claims -> claims.get("role", String.class));
+    }
+
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = extractAllClaims(token);
         return claimsResolver.apply(claims);
@@ -118,4 +123,7 @@ public class JwtService {
         }
         return expired;
     }
+
+
+
 }
