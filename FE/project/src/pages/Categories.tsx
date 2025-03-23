@@ -3,6 +3,7 @@ import { Edit, RefreshCw, Trash2, Plus, X } from 'lucide-react';
 import CategoryService from '../service/CategoryService.js'; // Adjust path as needed
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { storage, ref, uploadBytesResumable, getDownloadURL } from '../../src/firebaseConfig.ts'; // Adjust path to your firebase-config file
 
 interface Category {
   id: string;
@@ -27,11 +28,11 @@ export default function Categories() {
     categoryImage: '',
     status: 'active',
   });
+  const [file, setFile] = useState<File | null>(null);
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // State cho phân trang, tìm kiếm, và sắp xếp
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(5);
   const [searchQuery, setSearchQuery] = useState('');
@@ -46,7 +47,7 @@ export default function Categories() {
       const data = await CategoryService.getAllCategories();
       setCategories(data);
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Lỗi khi tải danh sách danh mục!', {
+      toast.error(error.response?.data?.message || '❌ Lỗi khi tải danh sách danh mục!', {
         position: 'top-right',
         autoClose: 3000,
       });
@@ -65,29 +66,63 @@ export default function Categories() {
       categoryImage: '',
       status: 'active',
     });
+    setFile(null);
     setFormErrors({});
+    setUploadProgress(0);
   };
 
-  // Hàm validate form
-  const validateForm = (data: typeof formData): FormErrors => {
-    const errors: FormErrors = {};
-    const urlPattern = /^(https?:\/\/.*\.(?:png|jpg|jpeg|gif))/i;
+  const uploadFile = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const fileName = `${Date.now()}-${file.name}`;
+      const storageRef = ref(storage, `fainal/loai/${fileName}`);
+      const uploadTask = uploadBytesResumable(storageRef, file);
 
-    // Validate name
+      uploadTask.on(
+          'state_changed',
+          (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            setUploadProgress(progress);
+          },
+          (error) => {
+            console.error("❌ Lỗi khi tải ảnh lên Firebase:", error);
+            toast.error("❌ Không thể tải ảnh lên Firebase. Vui lòng thử lại!");
+            reject(error);
+          },
+          async () => {
+            try {
+              const imageUrl = await getDownloadURL(uploadTask.snapshot.ref);
+              resolve(imageUrl);
+            } catch (error) {
+              console.error("❌ Lỗi khi lấy URL ảnh:", error);
+              toast.error("❌ Lỗi khi lấy URL ảnh. Vui lòng thử lại!");
+              reject(error);
+            }
+          }
+      );
+    });
+  };
+
+  const validateForm = (data: typeof formData, file: File | null): FormErrors => {
+    const errors: FormErrors = {};
+
     if (!data.name.trim()) {
       errors.name = 'Tên danh mục không được để trống!';
     } else if (data.name.length > 50) {
       errors.name = 'Tên danh mục không được vượt quá 50 ký tự!';
     }
 
-    // Validate categoryImage
-    if (!data.categoryImage.trim()) {
-      errors.categoryImage = 'URL hình ảnh không được để trống!';
-    } else if (!urlPattern.test(data.categoryImage)) {
-      errors.categoryImage = 'URL hình ảnh phải là định dạng png, jpg, jpeg hoặc gif!';
+    if (!file && !data.categoryImage) {
+      errors.categoryImage = 'Vui lòng chọn file ảnh!';
+    } else if (file) {
+      const validTypes = ['image/png', 'image/jpeg', 'image/gif'];
+      if (!validTypes.includes(file.type)) {
+        errors.categoryImage = 'File phải là định dạng PNG, JPG hoặc GIF!';
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        errors.categoryImage = 'Kích thước file không được vượt quá 5MB!';
+      }
     }
 
-    // Validate status
     if (!['active', 'inactive'].includes(data.status)) {
       errors.status = 'Trạng thái không hợp lệ!';
     }
@@ -97,29 +132,35 @@ export default function Categories() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
 
-    // Kiểm tra lỗi
-    const errors = validateForm(formData);
+    if (!file) {
+      toast.error("❌ Vui lòng chọn ảnh trước khi lưu!");
+      return;
+    }
+
+    setIsSubmitting(true);
+    const errors = validateForm(formData, file);
     setFormErrors(errors);
 
     if (Object.keys(errors).length > 0) {
       Object.values(errors).forEach((error) =>
-          toast.error(error, { position: 'top-right', autoClose: 3000 })
+          toast.error(`❌ ${error}`, { position: 'top-right', autoClose: 3000 })
       );
       setIsSubmitting(false);
       return;
     }
 
     try {
-      await CategoryService.createCategory(formData);
-      toast.success('Thêm danh mục thành công!', { position: 'top-right', autoClose: 2000 });
+      const imageUrl = await uploadFile(file);
+      const newFormData = { ...formData, categoryImage: imageUrl };
+      await CategoryService.createCategory(newFormData);
+      toast.success('✅ Danh mục đã được thêm thành công!', { position: 'top-right', autoClose: 2000 });
       setShowModal(false);
       resetForm();
       await fetchCategories();
     } catch (error) {
-      const errorMsg = error.response?.data?.message || 'Lỗi khi thêm danh mục!';
-      toast.error(errorMsg, { position: 'top-right', autoClose: 2000 });
+      console.error("❌ Lỗi khi lưu danh mục:", error);
+      toast.error('❌ Không thể thêm danh mục do lỗi tải ảnh. Vui lòng thử lại!', { position: 'top-right', autoClose: 2000 });
     } finally {
       setIsSubmitting(false);
     }
@@ -128,30 +169,34 @@ export default function Categories() {
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCategory) return;
-    setIsSubmitting(true);
 
-    // Kiểm tra lỗi
-    const errors = validateForm(formData);
+    setIsSubmitting(true);
+    const errors = validateForm(formData, file || (formData.categoryImage ? new File([], '') : null));
     setFormErrors(errors);
 
     if (Object.keys(errors).length > 0) {
       Object.values(errors).forEach((error) =>
-          toast.error(error, { position: 'top-right', autoClose: 3000 })
+          toast.error(`❌ ${error}`, { position: 'top-right', autoClose: 3000 })
       );
       setIsSubmitting(false);
       return;
     }
 
     try {
-      await CategoryService.updateCategory(selectedCategory.id, formData);
-      toast.success('Cập nhật danh mục thành công!', { position: 'top-right', autoClose: 2000 });
+      let updatedFormData = { ...formData };
+      if (file) {
+        const imageUrl = await uploadFile(file);
+        updatedFormData.categoryImage = imageUrl;
+      }
+      await CategoryService.updateCategory(selectedCategory.id, updatedFormData);
+      toast.success('✅ Danh mục đã được cập nhật thành công!', { position: 'top-right', autoClose: 2000 });
       setShowEditModal(false);
       setSelectedCategory(null);
       resetForm();
       await fetchCategories();
     } catch (error) {
-      const errorMsg = error.response?.data?.message || 'Lỗi khi cập nhật danh mục!';
-      toast.error(errorMsg, { position: 'top-right', autoClose: 2000 });
+      console.error("❌ Lỗi khi cập nhật danh mục:", error);
+      toast.error('❌ Không thể cập nhật danh mục do lỗi tải ảnh. Vui lòng thử lại!', { position: 'top-right', autoClose: 2000 });
     } finally {
       setIsSubmitting(false);
     }
@@ -203,14 +248,14 @@ export default function Categories() {
       try {
         if (isDisabling) {
           await CategoryService.disableCategory(id);
-          toast.success('Vô hiệu hóa danh mục thành công!', { position: 'top-right', autoClose: 1000 });
+          toast.success('✅ Vô hiệu hóa danh mục thành công!', { position: 'top-right', autoClose: 1000 });
         } else {
           await CategoryService.restoreCategory(id);
-          toast.success('Khôi phục danh mục thành công!', { position: 'top-right', autoClose: 1000 });
+          toast.success('✅ Khôi phục danh mục thành công!', { position: 'top-right', autoClose: 1000 });
         }
         await fetchCategories();
       } catch (error) {
-        const errorMsg = error.response?.data?.message || `Lỗi khi ${action} danh mục!`;
+        const errorMsg = error.response?.data?.message || `❌ Lỗi khi ${action} danh mục!`;
         toast.error(errorMsg, { position: 'top-right', autoClose: 1000 });
       }
     }
@@ -223,6 +268,7 @@ export default function Categories() {
       categoryImage: category.categoryImage,
       status: category.status,
     });
+    setFile(null);
     setFormErrors({});
     setShowEditModal(true);
   };
@@ -233,7 +279,6 @@ export default function Categories() {
     resetForm();
   };
 
-  // Logic xử lý tìm kiếm, sắp xếp và phân trang
   const filteredCategories = categories
       .filter((category) => category.name.toLowerCase().includes(searchQuery.toLowerCase()))
       .sort((a, b) => {
@@ -428,25 +473,32 @@ export default function Categories() {
                     {formErrors.name && <p className="mt-1 text-sm text-red-500">{formErrors.name}</p>}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">URL hình ảnh</label>
+                    <label className="block text-sm font-medium text-gray-700">Hình ảnh danh mục</label>
                     <input
-                        type="url"
-                        className={`mt-2 w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none ${
+                        type="file"
+                        accept="image/png,image/jpeg,image/gif"
+                        className={`mt-2 w-full px-4 py-2 border rounded-lg ${
                             formErrors.categoryImage ? 'border-red-500' : ''
                         }`}
-                        value={formData.categoryImage}
-                        onChange={(e) => setFormData({ ...formData, categoryImage: e.target.value })}
+                        onChange={(e) => setFile(e.target.files?.[0] || null)}
                     />
                     {formErrors.categoryImage && (
                         <p className="mt-1 text-sm text-red-500">{formErrors.categoryImage}</p>
                     )}
-                    {formData.categoryImage && (
+                    {uploadProgress > 0 && uploadProgress < 100 && (
+                        <div className="mt-2 w-full bg-gray-200 rounded-full h-2.5">
+                          <div
+                              className="bg-blue-600 h-2.5 rounded-full"
+                              style={{ width: `${uploadProgress}%` }}
+                          ></div>
+                        </div>
+                    )}
+                    {file && (
                         <div className="mt-4">
                           <img
-                              src={formData.categoryImage}
+                              src={URL.createObjectURL(file)}
                               alt="Xem trước ảnh"
                               className="w-full h-40 object-cover rounded-lg border"
-                              onError={(e) => (e.currentTarget.src = FALLBACK_IMAGE)}
                           />
                         </div>
                     )}
@@ -507,17 +559,35 @@ export default function Categories() {
                     {formErrors.name && <p className="mt-1 text-sm text-red-500">{formErrors.name}</p>}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">URL hình ảnh</label>
+                    <label className="block text-sm font-medium text-gray-700">Hình ảnh danh mục</label>
                     <input
-                        type="url"
-                        className={`mt-2 w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none ${
+                        type="file"
+                        accept="image/png,image/jpeg,image/gif"
+                        className={`mt-2 w-full px-4 py-2 border rounded-lg ${
                             formErrors.categoryImage ? 'border-red-500' : ''
                         }`}
-                        value={formData.categoryImage}
-                        onChange={(e) => setFormData({ ...formData, categoryImage: e.target.value })}
+                        onChange={(e) => setFile(e.target.files?.[0] || null)}
                     />
                     {formErrors.categoryImage && (
                         <p className="mt-1 text-sm text-red-500">{formErrors.categoryImage}</p>
+                    )}
+                    {uploadProgress > 0 && uploadProgress < 100 && (
+                        <div className="mt-2 w-full bg-gray-200 rounded-full h-2.5">
+                          <div
+                              className="bg-blue-600 h-2.5 rounded-full"
+                              style={{ width: `${uploadProgress}%` }}
+                          ></div>
+                        </div>
+                    )}
+                    {(file || formData.categoryImage) && (
+                        <div className="mt-4">
+                          <img
+                              src={file ? URL.createObjectURL(file) : formData.categoryImage}
+                              alt="Xem trước ảnh"
+                              className="w-full h-40 object-cover rounded-lg border"
+                              onError={(e) => (e.currentTarget.src = FALLBACK_IMAGE)}
+                          />
+                        </div>
                     )}
                   </div>
                   <div>

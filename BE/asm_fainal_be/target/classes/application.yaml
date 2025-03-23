@@ -13,9 +13,22 @@ spring:
       name: admin
       password: admin
 
-jwt:
-  secret: your_secret_key_here
-  expiration: 86400000 # Token sống trong 1 ngày (milliseconds)
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: vothanhphat7480@gmail.com
+    password: hoee syxe fenp kjrk
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+
+app:
+   jwt:
+      secret-key: "357638792F423F4428472B4B6250655368566D597133743677397A2443264629"
 
 camunda:
   bpm:

@@ -4,12 +4,13 @@ import ProductService from "../service/ProductService.js";
 import CategoryService from "../service/CategoryService.js";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import axios from 'axios'; // Sử dụng instance từ axiosConfig nếu có
+import axios from 'axios';
 import Cookies from 'js-cookie';
+import { storage, ref, uploadBytesResumable, getDownloadURL }  from '../../src/firebaseConfig.ts';  // Adjust path to your firebase-config file
 
 // Cấu hình Axios với base URL
 const axiosInstance = axios.create({
-  baseURL: 'http://localhost:8080/api', // Base URL của backend
+  baseURL: 'http://localhost:8080/api',
 });
 
 axiosInstance.interceptors.request.use(
@@ -59,7 +60,9 @@ export default function Products() {
     imageUrls: [] as string[],
     categoryId: "",
   });
-  const [newImageUrls, setNewImageUrls] = useState<string>("");
+  const [imageFiles, setImageFiles] = useState<File[]>([]); // State cho các file ảnh khi thêm/sửa sản phẩm
+  const [newImageFiles, setNewImageFiles] = useState<File[]>([]); // State cho các file ảnh mới trong modal thêm ảnh
+  const [uploadProgress, setUploadProgress] = useState<number[]>([]); // Theo dõi tiến trình upload
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [sortField, setSortField] = useState<keyof Product | "category.name" | null>(null);
@@ -99,6 +102,44 @@ export default function Products() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const uploadFilesToFirebase = async (files: File[]): Promise<string[]> => {
+    const uploadPromises = files.map((file, index) => {
+      return new Promise<string>((resolve, reject) => {
+        const fileName = `${Date.now()}-${index}-${file.name}`;
+        const storageRef = ref(storage, `products/${fileName}`);
+        const uploadTask = uploadBytesResumable(storageRef, file);
+
+        uploadTask.on(
+            'state_changed',
+            (snapshot) => {
+              const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+              setUploadProgress((prev) => {
+                const newProgress = [...prev];
+                newProgress[index] = progress;
+                return newProgress;
+              });
+            },
+            (error) => {
+              console.error("Lỗi khi tải ảnh lên Firebase:", error);
+              toast.error("Không thể tải ảnh lên Firebase: " + error.message);
+              reject(error);
+            },
+            async () => {
+              try {
+                const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                resolve(downloadURL);
+              } catch (error) {
+                console.error("Lỗi khi lấy URL ảnh:", error);
+                reject(error);
+              }
+            }
+        );
+      });
+    });
+
+    return Promise.all(uploadPromises);
   };
 
   const handleToggleStatus = async (id: string) => {
@@ -143,10 +184,16 @@ export default function Products() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
     try {
       const selectedCategory = categories.find((cat) => cat.id === formData.categoryId);
       if (!selectedCategory) throw new Error("Vui lòng chọn danh mục hợp lệ");
-      if (formData.imageUrls.length === 0) throw new Error("Vui lòng thêm ít nhất một URL ảnh");
+      if (imageFiles.length === 0 && !editingProduct) throw new Error("Vui lòng thêm ít nhất một ảnh");
+
+      let uploadedImageUrls = formData.imageUrls;
+      if (imageFiles.length > 0) {
+        uploadedImageUrls = await uploadFilesToFirebase(imageFiles);
+      }
 
       const productData = {
         name: formData.name.trim(),
@@ -154,7 +201,7 @@ export default function Products() {
         quantity: Number(formData.quantity),
         discount: Number(formData.discount) || 0,
         description: formData.description.trim(),
-        imageUrls: formData.imageUrls,
+        imageUrls: uploadedImageUrls,
         category: {
           id: selectedCategory.id,
           name: selectedCategory.name,
@@ -195,11 +242,14 @@ export default function Products() {
       imageUrls: [...product.imageUrls],
       categoryId: product.category?.id || "",
     });
+    setImageFiles([]); // Reset file khi chỉnh sửa
     setShowModal(true);
   };
 
   const resetForm = () => {
     setFormData({ name: "", price: 0, quantity: 0, discount: 0, description: "", imageUrls: [], categoryId: "" });
+    setImageFiles([]);
+    setUploadProgress([]);
   };
 
   const formatPrice = (price: number) => {
@@ -208,7 +258,8 @@ export default function Products() {
 
   const handleAddImages = (product: Product) => {
     setSelectedProductForImages(product);
-    setNewImageUrls("");
+    setNewImageFiles([]);
+    setUploadProgress([]);
     setShowImageModal(true);
   };
 
@@ -218,10 +269,11 @@ export default function Products() {
 
     setLoading(true);
     try {
-      const updatedImageUrls = [
-        ...selectedProductForImages.imageUrls,
-        ...newImageUrls.split(",").map((url) => url.trim()).filter(Boolean),
-      ];
+      let updatedImageUrls = [...selectedProductForImages.imageUrls];
+      if (newImageFiles.length > 0) {
+        const newUrls = await uploadFilesToFirebase(newImageFiles);
+        updatedImageUrls = [...updatedImageUrls, ...newUrls];
+      }
 
       const updatedProduct = {
         ...selectedProductForImages,
@@ -263,13 +315,13 @@ export default function Products() {
       setLoading(false);
     }
   };
-  // Hàm xuất báo cáo
+
   const handleExportReport = async (format: "pdf" | "excel") => {
     setLoading(true);
     try {
       const response = await axiosInstance.get(`/reports`, {
-        params: { format }, // Pass format as a query parameter
-        responseType: 'blob', // Expect a binary file response
+        params: { format },
+        responseType: 'blob',
       });
 
       const blob = new Blob([response.data], {
@@ -294,14 +346,12 @@ export default function Products() {
     }
   };
 
-  // Hàm import Excel
   const handleImportExcel = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     setLoading(true);
     try {
-      // Validate file type
       const validTypes = [
         'application/vnd.ms-excel',
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -310,8 +360,7 @@ export default function Products() {
         throw new Error('Vui lòng chọn file Excel (.xls hoặc .xlsx)');
       }
 
-      // Validate file size (max 10MB)
-      const maxSize = 10 * 1024 * 1024; // 10MB
+      const maxSize = 10 * 1024 * 1024;
       if (file.size > maxSize) {
         throw new Error('File quá lớn, kích thước tối đa là 10MB');
       }
@@ -333,9 +382,7 @@ export default function Products() {
       await fetchProducts();
     } catch (error: any) {
       console.error('Lỗi khi import Excel:', error);
-      const errorMessage = error.response?.data?.message ||
-          error.message ||
-          'Lỗi khi import file Excel';
+      const errorMessage = error.response?.data?.message || error.message || 'Lỗi khi import file Excel';
       toast.error(errorMessage);
     } finally {
       setLoading(false);
@@ -692,21 +739,54 @@ export default function Products() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Hình ảnh (URL, cách nhau bởi dấu phẩy)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Hình ảnh sản phẩm</label>
                     <input
-                        type="text"
-                        value={formData.imageUrls.join(", ")}
-                        onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              imageUrls: e.target.value.split(",").map((url) => url.trim()).filter(Boolean),
-                            })
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                        required
+                        type="file"
+                        accept="image/png,image/jpeg,image/gif"
+                        multiple
+                        onChange={(e) => setImageFiles(e.target.files ? Array.from(e.target.files) : [])}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100"
                         disabled={loading}
-                        placeholder="Nhập URL ảnh, ví dụ: http://example.com/image.jpg"
                     />
+                    {uploadProgress.length > 0 && (
+                        <div className="mt-2 space-y-2">
+                          {uploadProgress.map((progress, index) => (
+                              progress > 0 && progress < 100 && (
+                                  <div key={index} className="w-full bg-gray-200 rounded-full h-2.5">
+                                    <div
+                                        className="bg-blue-600 h-2.5 rounded-full"
+                                        style={{ width: `${progress}%` }}
+                                    ></div>
+                                  </div>
+                              )
+                          ))}
+                        </div>
+                    )}
+                    {imageFiles.length > 0 && (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {imageFiles.map((file, index) => (
+                              <img
+                                  key={index}
+                                  src={URL.createObjectURL(file)}
+                                  alt={`Preview ${index}`}
+                                  className="h-16 w-16 object-cover rounded-lg"
+                              />
+                          ))}
+                        </div>
+                    )}
+                    {editingProduct && formData.imageUrls.length > 0 && (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {formData.imageUrls.map((url, index) => (
+                              <img
+                                  key={index}
+                                  src={url}
+                                  alt={`Existing ${index}`}
+                                  className="h-16 w-16 object-cover rounded-lg"
+                                  onError={(e) => (e.currentTarget.src = "https://via.placeholder.com/64")}
+                              />
+                          ))}
+                        </div>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Danh mục</label>
@@ -780,22 +860,46 @@ export default function Products() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Thêm URL ảnh mới (cách nhau bởi dấu phẩy)
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Thêm ảnh mới</label>
                     <input
-                        type="text"
-                        value={newImageUrls}
-                        onChange={(e) => setNewImageUrls(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                        placeholder="Nhập URL ảnh mới, ví dụ: http://example.com/image.jpg"
+                        type="file"
+                        accept="image/png,image/jpeg,image/gif"
+                        multiple
+                        onChange={(e) => setNewImageFiles(e.target.files ? Array.from(e.target.files) : [])}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100"
                         disabled={loading}
                     />
+                    {uploadProgress.length > 0 && (
+                        <div className="mt-2 space-y-2">
+                          {uploadProgress.map((progress, index) => (
+                              progress > 0 && progress < 100 && (
+                                  <div key={index} className="w-full bg-gray-200 rounded-full h-2.5">
+                                    <div
+                                        className="bg-blue-600 h-2.5 rounded-full"
+                                        style={{ width: `${progress}%` }}
+                                    ></div>
+                                  </div>
+                              )
+                          ))}
+                        </div>
+                    )}
+                    {newImageFiles.length > 0 && (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {newImageFiles.map((file, index) => (
+                              <img
+                                  key={index}
+                                  src={URL.createObjectURL(file)}
+                                  alt={`Preview ${index}`}
+                                  className="h-16 w-16 object-cover rounded-lg"
+                              />
+                          ))}
+                        </div>
+                    )}
                   </div>
                   <button
                       type="submit"
                       className="w-full bg-yellow-600 text-white py-2 rounded-lg hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 disabled:bg-gray-400"
-                      disabled={loading || !newImageUrls.trim()}
+                      disabled={loading || newImageFiles.length === 0}
                   >
                     {loading ? "Đang xử lý..." : "Thêm ảnh"}
                   </button>
